@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>随机强密码生成器</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      padding: 40px 36px;
+      width: 460px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      color: #e0e0e0;
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 28px;
+    }
+
+    /* ── 配置区域 ── */
+    .options {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .option-row:last-child { margin-bottom: 0; }
+
+    .option-label {
+      color: #a0aec0;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-right: 12px;
+    }
+
+    /* 长度滑块 */
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .slider {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(99, 179, 237, 0.25);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #63b3ed;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      background: #90cdf4;
+      transform: scale(1.15);
+    }
+
+    .length-val {
+      color: #63b3ed;
+      font-size: 14px;
+      font-weight: 700;
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* 字符类型开关 */
+    .char-toggles {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .char-toggle {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .char-toggle input[type="checkbox"] {
+      display: none;
+    }
+
+    .toggle-btn {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      border: 1px solid rgba(99, 179, 237, 0.3);
+      background: rgba(99, 179, 237, 0.05);
+      color: #718096;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .char-toggle input:checked + .toggle-btn {
+      background: rgba(99, 179, 237, 0.2);
+      border-color: rgba(99, 179, 237, 0.6);
+      color: #90cdf4;
+    }
+
+    .char-toggle:hover .toggle-btn {
+      border-color: rgba(99, 179, 237, 0.5);
+      color: #a0c4e0;
+    }
+
+    /* 无类型选中时的警告 */
+    .warn-msg {
+      color: #fc8181;
+      font-size: 11px;
+      text-align: center;
+      margin-top: 8px;
+      min-height: 14px;
+    }
+
+    /* ── 密码展示 ── */
+    .password-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(99, 179, 237, 0.3);
+      border-radius: 12px;
+      padding: 20px 16px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    #password-display {
+      color: #63b3ed;
+      font-size: 22px;
+      font-family: "Courier New", "Cascadia Code", monospace;
+      font-weight: 700;
+      letter-spacing: 3px;
+      word-break: break-all;
+      transition: opacity 0.2s;
+      min-height: 32px;
+    }
+
+    #password-display.fade {
+      opacity: 0;
+    }
+
+    .copy-hint {
+      color: #666;
+      font-size: 11px;
+      margin-bottom: 20px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .copy-hint:hover { color: #63b3ed; }
+    .copy-hint.copied { color: #68d391; }
+
+    /* ── 生成按钮 ── */
+    .btn-generate {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #3182ce, #2b6cb0);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, background 0.2s, opacity 0.2s;
+      box-shadow: 0 4px 16px rgba(49, 130, 206, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-generate:hover:not(:disabled) {
+      background: linear-gradient(135deg, #4299e1, #3182ce);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(49, 130, 206, 0.55);
+    }
+
+    .btn-generate:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-generate:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-generate .spin {
+      display: inline-block;
+      transition: transform 0.5s;
+    }
+
+    .btn-generate:hover:not(:disabled) .spin {
+      transform: rotate(180deg);
+    }
+
+    /* ── 强度条 ── */
+    .strength-bar {
+      display: flex;
+      gap: 6px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+
+    .strength-bar span {
+      height: 5px;
+      width: 60px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: background 0.3s;
+    }
+
+    .strength-label {
+      color: #68d391;
+      font-size: 12px;
+      margin-top: 8px;
+      transition: color 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🔐</div>
+    <h1>随机强密码生成器</h1>
+    <p class="subtitle">自定义长度与字符类型，一键生成强密码</p>
+
+    <!-- 配置选项 -->
+    <div class="options">
+      <!-- 密码长度 -->
+      <div class="option-row">
+        <span class="option-label">密码长度</span>
+        <div class="slider-wrap">
+          <input type="range" id="length-slider" class="slider"
+                 min="1" max="50" value="10" oninput="onLengthChange()">
+          <span class="length-val"><span id="length-display">10</span> 位</span>
+        </div>
+      </div>
+
+      <!-- 字符类型 -->
+      <div class="option-row">
+        <span class="option-label">字符类型</span>
+        <div class="char-toggles">
+          <label class="char-toggle">
+            <input type="checkbox" id="use-digits" checked onchange="onTypeChange()">
+            <span class="toggle-btn">数字</span>
+          </label>
+          <label class="char-toggle">
+            <input type="checkbox" id="use-lower" checked onchange="onTypeChange()">
+            <span class="toggle-btn">小写字母</span>
+          </label>
+          <label class="char-toggle">
+            <input type="checkbox" id="use-upper" checked onchange="onTypeChange()">
+            <span class="toggle-btn">大写字母</span>
+          </label>
+          <label class="char-toggle">
+            <input type="checkbox" id="use-special" checked onchange="onTypeChange()">
+            <span class="toggle-btn">特殊字符</span>
+          </label>
+        </div>
+      </div>
+
+      <p class="warn-msg" id="warn-msg"></p>
+    </div>
+
+    <!-- 密码展示 -->
+    <div class="password-box">
+      <div id="password-display">{{ password }}</div>
+    </div>
+
+    <p class="copy-hint" id="copy-hint" onclick="copyPassword()">点击复制密码</p>
+
+    <button class="btn-generate" id="btn-generate" onclick="refreshPassword()">
+      <span class="spin">🔄</span> 重新生成
+    </button>
+
+    <div class="strength-bar">
+      <span id="bar1"></span><span id="bar2"></span>
+      <span id="bar3"></span><span id="bar4"></span>
+    </div>
+    <p class="strength-label" id="strength-label">密码强度：非常强</p>
+  </div>
+
+  <script>
+    let currentPassword = document.getElementById("password-display").textContent;
+
+    function getOptions() {
+      return {
+        length:  parseInt(document.getElementById("length-slider").value),
+        digits:  document.getElementById("use-digits").checked  ? "1" : "0",
+        lower:   document.getElementById("use-lower").checked   ? "1" : "0",
+        upper:   document.getElementById("use-upper").checked   ? "1" : "0",
+        special: document.getElementById("use-special").checked ? "1" : "0",
+      };
+    }
+
+    function activeTypeCount() {
+      return ["use-digits", "use-lower", "use-upper", "use-special"]
+        .filter(id => document.getElementById(id).checked).length;
+    }
+
+    function updateStrength() {
+      const { length } = getOptions();
+      const types = activeTypeCount();
+
+      // 综合评分：类型数(0-4) + 长度档次(0-3)，最高 7
+      let score = types;
+      if (length >= 8)  score++;
+      if (length >= 12) score++;
+      if (length >= 16) score++;
+
+      let level, color, text;
+      if (types === 0 || score <= 2) {
+        level = 1; color = "#fc8181"; text = "弱";
+      } else if (score <= 4) {
+        level = 2; color = "#f6ad55"; text = "中等";
+      } else if (score <= 6) {
+        level = 3; color = "#68d391"; text = "强";
+      } else {
+        level = 4; color = "#68d391"; text = "非常强";
+      }
+
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById("bar" + i).style.background =
+          i <= level ? color : "rgba(255,255,255,0.1)";
+      }
+      const label = document.getElementById("strength-label");
+      label.textContent = "密码强度：" + text;
+      label.style.color = color;
+    }
+
+    function validate() {
+      const ok = activeTypeCount() > 0;
+      const btn = document.getElementById("btn-generate");
+      const warn = document.getElementById("warn-msg");
+      btn.disabled = !ok;
+      warn.textContent = ok ? "" : "请至少选择一种字符类型";
+      return ok;
+    }
+
+    function onLengthChange() {
+      document.getElementById("length-display").textContent =
+        document.getElementById("length-slider").value;
+      updateStrength();
+    }
+
+    function onTypeChange() {
+      validate();
+      updateStrength();
+    }
+
+    async function refreshPassword() {
+      if (!validate()) return;
+
+      const display = document.getElementById("password-display");
+      display.classList.add("fade");
+
+      const { length, digits, lower, upper, special } = getOptions();
+      const url = `/generate?length=${length}&digits=${digits}&lower=${lower}&upper=${upper}&special=${special}`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        setTimeout(() => {
+          currentPassword = data.password;
+          display.textContent = data.password;
+          display.classList.remove("fade");
+        }, 200);
+      } catch {
+        display.classList.remove("fade");
+      }
+
+      const hint = document.getElementById("copy-hint");
+      hint.textContent = "点击复制密码";
+      hint.classList.remove("copied");
+    }
+
+    function copyPassword() {
+      navigator.clipboard.writeText(currentPassword).then(() => {
+        const hint = document.getElementById("copy-hint");
+        hint.textContent = "✓ 已复制到剪贴板";
+        hint.classList.add("copied");
+        setTimeout(() => {
+          hint.textContent = "点击复制密码";
+          hint.classList.remove("copied");
+        }, 2000);
+      });
+    }
+
+    // 初始化强度显示
+    updateStrength();
+  </script>
+</body>
+</html>
