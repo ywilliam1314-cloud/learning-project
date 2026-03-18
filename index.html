@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XYZ to JSON Studio</title>
+  <style>
+    :root {
+      --bg: #f6efe5;
+      --bg-accent: radial-gradient(circle at top left, rgba(241, 166, 76, 0.3), transparent 38%),
+        radial-gradient(circle at bottom right, rgba(0, 128, 128, 0.22), transparent 30%),
+        linear-gradient(135deg, #fffaf3 0%, #f5ecdf 54%, #e8dfd2 100%);
+      --panel: rgba(255, 252, 246, 0.84);
+      --panel-strong: rgba(255, 255, 255, 0.96);
+      --border: rgba(77, 56, 38, 0.16);
+      --text: #2d2016;
+      --muted: #6d5b4d;
+      --accent: #0f7f7a;
+      --accent-soft: rgba(15, 127, 122, 0.14);
+      --drop: rgba(255, 251, 246, 0.72);
+      --shadow: 0 18px 60px rgba(59, 39, 19, 0.12);
+      --code-bg: rgba(63, 39, 17, 0.05);
+      --danger: #b24832;
+      --button-text: #fffdf8;
+    }
+
+    body[data-theme="dark"] {
+      --bg: #111419;
+      --bg-accent: radial-gradient(circle at top left, rgba(25, 127, 172, 0.28), transparent 36%),
+        radial-gradient(circle at bottom right, rgba(225, 128, 49, 0.18), transparent 32%),
+        linear-gradient(135deg, #12161b 0%, #182028 52%, #0d1116 100%);
+      --panel: rgba(19, 24, 31, 0.82);
+      --panel-strong: rgba(23, 30, 38, 0.96);
+      --border: rgba(159, 192, 204, 0.16);
+      --text: #edf1f3;
+      --muted: #9bb0bc;
+      --accent: #4fc7c2;
+      --accent-soft: rgba(79, 199, 194, 0.14);
+      --drop: rgba(18, 24, 31, 0.68);
+      --shadow: 0 22px 68px rgba(0, 0, 0, 0.34);
+      --code-bg: rgba(255, 255, 255, 0.04);
+      --danger: #ff8c73;
+      --button-text: #0d1718;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    }
+
+    body {
+      background-image: var(--bg-accent);
+      transition: background-color 180ms ease, color 180ms ease;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      padding: 22px;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      color: var(--text);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 2vw, 2rem);
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip,
+    .ghost-button,
+    .solid-button {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 16px;
+      backdrop-filter: blur(12px);
+      transition: transform 120ms ease, background-color 160ms ease, border-color 160ms ease;
+    }
+
+    .chip,
+    .ghost-button {
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .solid-button {
+      background: var(--accent);
+      color: var(--button-text);
+      border-color: transparent;
+      box-shadow: 0 12px 28px rgba(15, 127, 122, 0.24);
+    }
+
+    .ghost-button:hover,
+    .solid-button:hover,
+    .drop-card:hover {
+      transform: translateY(-1px);
+    }
+
+    .solid-button:disabled,
+    .ghost-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .workspace-shell {
+      min-height: 0;
+      position: relative;
+    }
+
+    .drop-stage,
+    .workspace {
+      height: 100%;
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .drop-stage {
+      display: grid;
+      place-items: center;
+      background: var(--drop);
+      position: relative;
+      min-height: calc(100vh - 130px);
+    }
+
+    .drop-stage::before {
+      content: "";
+      position: absolute;
+      inset: 16px;
+      border-radius: 24px;
+      border: 1.5px dashed rgba(15, 127, 122, 0.3);
+      pointer-events: none;
+    }
+
+    .drop-card {
+      width: min(820px, calc(100% - 40px));
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 42px 34px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+    }
+
+    .drop-stage.dragover .drop-card {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, var(--panel-strong), var(--accent-soft));
+      transform: scale(1.01);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.88rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .drop-card h2 {
+      margin: 0 0 14px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 1.08;
+    }
+
+    .drop-card p {
+      margin: 0 auto 24px;
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .drop-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.7;
+    }
+
+    .workspace {
+      display: none;
+      background: rgba(255, 255, 255, 0.1);
+      grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.1fr);
+    }
+
+    body.has-data .drop-stage {
+      display: none;
+    }
+
+    body.has-data .workspace {
+      display: grid;
+      min-height: calc(100vh - 130px);
+      animation: rise-in 220ms ease-out;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel + .panel {
+      border-left: 1px solid var(--border);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .panel-meta {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .panel-body {
+      min-height: 0;
+      padding: 18px 20px 20px;
+    }
+
+    pre {
+      margin: 0;
+      height: 100%;
+      overflow: auto;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--code-bg);
+      color: var(--text);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.92rem;
+      line-height: 1.58;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .placeholder {
+      display: grid;
+      place-items: center;
+      min-height: 100%;
+      padding: 30px;
+      border-radius: 20px;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      background: var(--code-bg);
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    .status {
+      font-size: 0.94rem;
+      color: var(--muted);
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @keyframes rise-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 980px) {
+      .shell {
+        padding: 14px;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .brand {
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .toolbar {
+        justify-content: space-between;
+      }
+
+      body.has-data .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .panel + .panel {
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="shell">
+    <header class="topbar">
+      <div class="toolbar">
+        <button class="ghost-button" id="themeToggle" type="button">切换到 Dark</button>
+        <span class="chip">Port 2100</span>
+        <span class="chip">v1.1</span>
+      </div>
+      <div class="brand">
+        <h1>XYZ to JSON Studio</h1>
+        <p>支持拖入单个 .xyz 文件，也支持拖入整个文件夹并自动递归转换。</p>
+      </div>
+    </header>
+
+    <main class="workspace-shell">
+      <section class="drop-stage" id="dropStage">
+        <div class="drop-card">
+          <div class="eyebrow">Local Converter</div>
+          <h2>把 .xyz 文件或文件夹直接拖进来</h2>
+          <p>
+            单文件模式会在右侧直接显示转换后的 JSON。文件夹模式会自动递归寻找其中的
+            <code>.xyz</code> 文件，调用本地 Flask 后端完成转换，并把对应的 <code>.json</code>
+            写回到每个 <code>.xyz</code> 所在的原目录。
+          </p>
+          <div class="drop-actions">
+            <button class="solid-button" id="chooseFileButton" type="button">选择 .xyz 文件</button>
+            <button class="ghost-button" id="chooseFolderButton" type="button">选择文件夹</button>
+          </div>
+          <p class="hint">
+            文件夹写回依赖 Chromium 系浏览器的 File System Access 能力。推荐通过
+            <code>http://127.0.0.1:2100</code> 打开本页面。
+          </p>
+          <p class="hint" id="protocolHint">
+            如果你是直接双击 HTML 文件打开页面，浏览器无法自动连接本地后端，也无法可靠地把结果写回原文件夹。
+            请先启动 <code>xyz_to_json.py</code> 或 <code>start_xyz_json_app.bat</code>。
+          </p>
+        </div>
+      </section>
+
+      <section class="workspace" id="workspace">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Source / Manifest</h2>
+              <div class="panel-meta" id="fileMeta">还没有读取内容</div>
+            </div>
+            <button class="ghost-button" id="replaceButton" type="button">重新选择</button>
+          </div>
+          <div class="panel-body">
+            <pre id="sourcePreview">等待载入 .xyz 文件或文件夹...</pre>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">JSON Output / Summary</h2>
+              <div class="panel-meta" id="jsonMeta">等待转换</div>
+            </div>
+            <button class="solid-button" id="downloadButton" type="button" disabled>下载 JSON</button>
+          </div>
+          <div class="panel-body">
+            <div class="placeholder" id="jsonPlaceholder">
+              后端已经就绪。拖入一个 .xyz 文件可以实时预览 JSON；拖入文件夹会自动批量转换并写回原目录。
+            </div>
+            <pre class="hidden" id="jsonPreview"></pre>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <input id="fileInput" type="file" accept=".xyz,.XYZ" class="hidden">
+  </div>
+
+  <script>
+    const themeToggle = document.getElementById("themeToggle");
+    const dropStage = document.getElementById("dropStage");
+    const fileInput = document.getElementById("fileInput");
+    const chooseFileButton = document.getElementById("chooseFileButton");
+    const chooseFolderButton = document.getElementById("chooseFolderButton");
+    const replaceButton = document.getElementById("replaceButton");
+    const sourcePreview = document.getElementById("sourcePreview");
+    const jsonPreview = document.getElementById("jsonPreview");
+    const jsonPlaceholder = document.getElementById("jsonPlaceholder");
+    const fileMeta = document.getElementById("fileMeta");
+    const jsonMeta = document.getElementById("jsonMeta");
+    const downloadButton = document.getElementById("downloadButton");
+    const protocolHint = document.getElementById("protocolHint");
+
+    let currentDownloadText = "";
+    let currentDownloadName = "converted.json";
+    let recordCounter = 0;
+
+    function applyTheme(theme) {
+      document.body.dataset.theme = theme;
+      localStorage.setItem("xyz-json-theme", theme);
+      themeToggle.textContent = theme === "dark" ? "切换到 Light" : "切换到 Dark";
+    }
+
+    function formatBytes(size) {
+      if (!Number.isFinite(size)) {
+        return "";
+      }
+      if (size < 1024) {
+        return `${size} B`;
+      }
+      if (size < 1024 * 1024) {
+        return `${(size / 1024).toFixed(1)} KB`;
+      }
+      return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function baseName(name) {
+      return name.replace(/\.[^.]+$/, "") || "converted";
+    }
+
+    function showWorkspace() {
+      document.body.classList.add("has-data");
+    }
+
+    function setSourceState(text, meta) {
+      showWorkspace();
+      sourcePreview.textContent = text;
+      fileMeta.textContent = meta;
+    }
+
+    function setJsonState(text, meta, isError = false) {
+      jsonPlaceholder.classList.add("hidden");
+      jsonPreview.classList.remove("hidden");
+      jsonPreview.textContent = text;
+      jsonMeta.textContent = meta;
+      jsonMeta.classList.toggle("status", true);
+      jsonMeta.classList.toggle("error", isError);
+      downloadButton.disabled = isError || !currentDownloadText;
+    }
+
+    function resetJsonState(message) {
+      jsonPreview.classList.add("hidden");
+      jsonPlaceholder.classList.remove("hidden");
+      jsonPlaceholder.textContent = message;
+      jsonMeta.textContent = "等待转换";
+      jsonMeta.classList.remove("error");
+      currentDownloadText = "";
+      currentDownloadName = "converted.json";
+      downloadButton.disabled = true;
+      downloadButton.textContent = "下载 JSON";
+    }
+
+    function setPendingState(message, meta) {
+      currentDownloadText = "";
+      currentDownloadName = "converted.json";
+      downloadButton.disabled = true;
+      downloadButton.textContent = "下载 JSON";
+      setJsonState(message, meta, false);
+    }
+
+    function downloadCurrentJson() {
+      if (!currentDownloadText) {
+        return;
+      }
+      const blob = new Blob([currentDownloadText], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = currentDownloadName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function frameCountFromDocument(document) {
+      return Array.isArray(document) ? document.length : "未知";
+    }
+
+    function buildBatchManifest(title, records) {
+      const lines = [
+        title,
+        "",
+        `找到 ${records.length} 个 .xyz 文件:`,
+        ""
+      ];
+
+      records.forEach((record, index) => {
+        lines.push(`${String(index + 1).padStart(2, "0")}. ${record.displayPath} (${formatBytes(record.size)})`);
+      });
+
+      return lines.join("\n");
+    }
+
+    function createClientId() {
+      recordCounter += 1;
+      return `record-${Date.now()}-${recordCounter}`;
+    }
+
+    async function callSingleConvertApi(filename, content) {
+      const response = await fetch("/api/convert", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ filename, content })
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "转换失败。");
+      }
+      return payload;
+    }
+
+    async function callBatchConvertApi(records) {
+      const response = await fetch("/api/convert-batch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          items: records.map((record) => ({
+            client_id: record.clientId,
+            filename: record.filename,
+            relative_path: record.displayPath,
+            content: record.content
+          }))
+        })
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "批量转换失败。");
+      }
+      return payload;
+    }
+
+    async function convertSingleFile(file) {
+      if (!file.name.toLowerCase().endsWith(".xyz")) {
+        setSourceState("", `${file.name} | 不支持的文件类型`);
+        resetJsonState("这里只支持 .xyz 文件。");
+        return;
+      }
+
+      const content = await file.text();
+      setSourceState(content, `${file.name} | ${formatBytes(file.size)}`);
+      setPendingState("正在调用本地后端转换，请稍候...", "转换中");
+
+      try {
+        const payload = await callSingleConvertApi(file.name, content);
+        currentDownloadText = `${JSON.stringify(payload, null, 2)}\n`;
+        currentDownloadName = `${baseName(file.name)}.json`;
+        downloadButton.textContent = "下载 JSON";
+        setJsonState(currentDownloadText, `转换完成 | ${frameCountFromDocument(payload)} frame(s)`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "转换失败。";
+        currentDownloadText = "";
+        setJsonState(message, "转换失败", true);
+      }
+    }
+
+    async function ensureReadWritePermission(handle) {
+      if (!handle || typeof handle.queryPermission !== "function") {
+        return true;
+      }
+
+      const options = { mode: "readwrite" };
+      const existing = await handle.queryPermission(options);
+      if (existing === "granted") {
+        return true;
+      }
+
+      const requested = await handle.requestPermission(options);
+      return requested === "granted";
+    }
+
+    async function collectRecordsFromDirectory(directoryHandle, rootLabel, relativePrefix = "", saveEnabled = true) {
+      const records = [];
+
+      for await (const [name, handle] of directoryHandle.entries()) {
+        const relativePath = relativePrefix ? `${relativePrefix}/${name}` : name;
+        const displayPath = `${rootLabel}/${relativePath}`;
+
+        if (handle.kind === "directory") {
+          records.push(...await collectRecordsFromDirectory(handle, rootLabel, relativePath, saveEnabled));
+          continue;
+        }
+
+        if (handle.kind !== "file" || !name.toLowerCase().endsWith(".xyz")) {
+          continue;
+        }
+
+        const file = await handle.getFile();
+        records.push({
+          clientId: createClientId(),
+          filename: name,
+          displayPath,
+          content: await file.text(),
+          size: file.size,
+          parentDirectoryHandle: directoryHandle,
+          outputName: `${baseName(name)}.json`,
+          saveEnabled
+        });
+      }
+
+      return records;
+    }
+
+    async function collectRecordsFromHandles(handles) {
+      const records = [];
+
+      for (const handle of handles) {
+        if (!handle) {
+          continue;
+        }
+
+        if (handle.kind === "directory") {
+          const saveEnabled = await ensureReadWritePermission(handle);
+          records.push(...await collectRecordsFromDirectory(handle, handle.name, "", saveEnabled));
+          continue;
+        }
+
+        if (handle.kind === "file" && handle.name.toLowerCase().endsWith(".xyz")) {
+          const file = await handle.getFile();
+          records.push({
+            clientId: createClientId(),
+            filename: handle.name,
+            displayPath: handle.name,
+            content: await file.text(),
+            size: file.size,
+            parentDirectoryHandle: null,
+            outputName: `${baseName(handle.name)}.json`,
+            saveEnabled: false
+          });
+        }
+      }
+
+      return records;
+    }
+
+    async function saveDocumentNextToSource(record, document) {
+      if (!record.parentDirectoryHandle || !record.saveEnabled) {
+        return false;
+      }
+
+      const outputHandle = await record.parentDirectoryHandle.getFileHandle(record.outputName, { create: true });
+      const writable = await outputHandle.createWritable();
+      await writable.write(`${JSON.stringify(document, null, 2)}\n`);
+      await writable.close();
+      return true;
+    }
+
+    function buildBatchSummary(records, payload, fileResults, saveModeLabel) {
+      const convertedCount = fileResults.filter((item) => (
+        item.status === "saved" ||
+        item.status === "converted_only" ||
+        item.status === "save_error"
+      )).length;
+      const savedCount = fileResults.filter((item) => item.status === "saved").length;
+      const failedCount = fileResults.filter((item) => item.status === "convert_error" || item.status === "save_error").length;
+
+      return {
+        mode: records.some((record) => record.parentDirectoryHandle) ? "folder" : "multi-file",
+        xyz_file_count: records.length,
+        converted_count: convertedCount,
+        saved_count: savedCount,
+        failed_count: failedCount,
+        backend_success_count: payload.success_count,
+        backend_failure_count: payload.failure_count,
+        save_mode: saveModeLabel,
+        files: fileResults
+      };
+    }
+
+    async function convertBatchRecords(records, summaryName) {
+      if (!records.length) {
+        setSourceState("", "没有发现可处理的 .xyz 文件");
+        resetJsonState("拖入的内容里没有找到 .xyz 文件。");
+        return;
+      }
+
+      setSourceState(
+        buildBatchManifest("批量转换清单", records),
+        `${records.length} 个 .xyz 文件`
+      );
+      setPendingState("正在批量调用本地后端并准备写回原目录，请稍候...", "批量转换中");
+
+      try {
+        const payload = await callBatchConvertApi(records);
+        const recordMap = new Map(records.map((record) => [record.clientId, record]));
+        const fileResults = [];
+
+        for (const result of payload.results) {
+          const record = recordMap.get(result.client_id);
+          const displayPath = record ? record.displayPath : (result.relative_path || result.filename);
+
+          if (!result.success) {
+            fileResults.push({
+              source: displayPath,
+              output: null,
+              status: "convert_error",
+              error: result.error
+            });
+            continue;
+          }
+
+          if (record && record.parentDirectoryHandle && record.saveEnabled) {
+            try {
+              await saveDocumentNextToSource(record, result.document);
+              fileResults.push({
+                source: displayPath,
+                output: displayPath.replace(/\.xyz$/i, ".json"),
+                status: "saved",
+                frame_count: frameCountFromDocument(result.document)
+              });
+              continue;
+            } catch (error) {
+              fileResults.push({
+                source: displayPath,
+                output: displayPath.replace(/\.xyz$/i, ".json"),
+                status: "save_error",
+                error: error instanceof Error ? error.message : "写回失败。",
+                frame_count: frameCountFromDocument(result.document)
+              });
+              continue;
+            }
+          }
+
+          fileResults.push({
+            source: displayPath,
+            output: null,
+            status: "converted_only",
+            frame_count: frameCountFromDocument(result.document)
+          });
+        }
+
+        const saveModeLabel = records.some((record) => record.parentDirectoryHandle && record.saveEnabled)
+          ? "same-folder"
+          : "preview-only";
+        const summary = buildBatchSummary(records, payload, fileResults, saveModeLabel);
+        currentDownloadText = `${JSON.stringify(summary, null, 2)}\n`;
+        currentDownloadName = summaryName;
+        downloadButton.textContent = "下载摘要";
+
+        const meta = `${summary.converted_count} 个已转换 | ${summary.saved_count} 个已写回 | ${summary.failed_count} 个失败`;
+        setJsonState(currentDownloadText, meta, summary.failed_count > 0 && summary.converted_count === 0);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "批量转换失败。";
+        currentDownloadText = "";
+        currentDownloadName = "conversion-summary.json";
+        setJsonState(message, "批量转换失败", true);
+      }
+    }
+
+    async function chooseDirectory() {
+      if (typeof window.showDirectoryPicker !== "function") {
+        setSourceState("", "当前浏览器不支持文件夹写回");
+        resetJsonState("当前浏览器不支持 showDirectoryPicker。请使用最新版 Chrome 或 Edge。");
+        return;
+      }
+
+      try {
+        const directoryHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+        const records = await collectRecordsFromHandles([directoryHandle]);
+        await convertBatchRecords(records, `${directoryHandle.name}-conversion-summary.json`);
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          return;
+        }
+        const message = error instanceof Error ? error.message : "无法读取所选文件夹。";
+        setSourceState("", "文件夹读取失败");
+        setJsonState(message, "文件夹读取失败", true);
+      }
+    }
+
+    async function handleFileList(fileList) {
+      const files = Array.from(fileList || []).filter((file) => file.name.toLowerCase().endsWith(".xyz"));
+      if (!files.length) {
+        setSourceState("", "没有读取到 .xyz 文件");
+        resetJsonState("这里只支持 .xyz 文件或包含 .xyz 的文件夹。");
+        return;
+      }
+
+      if (files.length === 1) {
+        await convertSingleFile(files[0]);
+        return;
+      }
+
+      const records = await Promise.all(files.map(async (file) => ({
+        clientId: createClientId(),
+        filename: file.name,
+        displayPath: file.webkitRelativePath || file.name,
+        content: await file.text(),
+        size: file.size,
+        parentDirectoryHandle: null,
+        outputName: `${baseName(file.name)}.json`,
+        saveEnabled: false
+      })));
+
+      await convertBatchRecords(records, "batch-conversion-summary.json");
+    }
+
+    async function extractHandlesFromDrop(dataTransfer) {
+      if (!dataTransfer?.items?.length) {
+        return [];
+      }
+
+      const handles = [];
+      for (const item of Array.from(dataTransfer.items)) {
+        if (item.kind !== "file" || typeof item.getAsFileSystemHandle !== "function") {
+          continue;
+        }
+        try {
+          const handle = await item.getAsFileSystemHandle();
+          if (handle) {
+            handles.push(handle);
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      return handles;
+    }
+
+    async function handleDrop(dataTransfer) {
+      const handles = await extractHandlesFromDrop(dataTransfer);
+      if (handles.length > 0) {
+        const containsDirectory = handles.some((handle) => handle.kind === "directory");
+        if (containsDirectory) {
+          const records = await collectRecordsFromHandles(handles);
+          await convertBatchRecords(records, "folder-conversion-summary.json");
+          return;
+        }
+
+        const xyzHandles = handles.filter((handle) => handle.kind === "file" && handle.name.toLowerCase().endsWith(".xyz"));
+        if (xyzHandles.length === 1) {
+          const file = await xyzHandles[0].getFile();
+          await convertSingleFile(file);
+          return;
+        }
+        if (xyzHandles.length > 1) {
+          const records = await collectRecordsFromHandles(xyzHandles);
+          await convertBatchRecords(records, "batch-conversion-summary.json");
+          return;
+        }
+      }
+
+      await handleFileList(dataTransfer.files);
+    }
+
+    const savedTheme = localStorage.getItem("xyz-json-theme");
+    applyTheme(savedTheme === "dark" ? "dark" : "light");
+
+    themeToggle.addEventListener("click", () => {
+      const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
+      applyTheme(nextTheme);
+    });
+
+    chooseFileButton.addEventListener("click", () => fileInput.click());
+    replaceButton.addEventListener("click", () => fileInput.click());
+
+    chooseFolderButton.addEventListener("click", chooseDirectory);
+    fileInput.addEventListener("change", async (event) => {
+      await handleFileList(event.target.files);
+      event.target.value = "";
+    });
+
+    downloadButton.addEventListener("click", downloadCurrentJson);
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      window.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropStage.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      window.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        if (eventName === "dragleave" && event.relatedTarget) {
+          return;
+        }
+        dropStage.classList.remove("dragover");
+      });
+    });
+
+    window.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      dropStage.classList.remove("dragover");
+      await handleDrop(event.dataTransfer);
+    });
+
+    protocolHint.classList.toggle("hidden", window.location.protocol !== "file:");
+  </script>
+</body>
+</html>

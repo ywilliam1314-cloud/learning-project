@@ -1,0 +1,7 @@
+services:
+  xyz-to-json:
+    build: .
+    container_name: xyz-to-json
+    ports:
+      - "2100:2100"
+    restart: unless-stopped
