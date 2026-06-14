@@ -107,4 +107,4 @@ python app.py
 | 前端 | 原生 HTML5 · CSS3（毛玻璃 / 渐变）· 原生 JS（Fetch API · Clipboard API）|
 | 模板 | Jinja2 |
 | 运行环境 | Windows 11 · Python 3.14 |
-| 开发者 | 易明贵
+| 开发者 | MG Y
